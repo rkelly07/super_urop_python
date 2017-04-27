@@ -30,13 +30,13 @@ class CoresetStructure:
 		return self.coreset
 
 	def get_video_info(self):
-		return self.coreset['video_info'][0][0][0]
+		return self.coreset['video_info'][0][0][0][0]
 	
 	def get_tree_name(self):
-		return self.coreset['coreset_name'][0][0][0]
+		return self.coreset['coreset_name'][0][0][0][0][0]
 
 	def get_results_name(self):
-		return self.coreset['coreset_results'][0][0][0]
+		return self.coreset['coreset_results'][0][0][0][0][0]
 
 	def get_coreset_nodes(self):
 		return self.coreset['Nodes'][0][0][0] #TODO

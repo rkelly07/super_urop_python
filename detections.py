@@ -1,20 +1,22 @@
+import _init_paths
 import boto3
 import os
 import time
 import cv2
 import numpy as np
 import scipy
-import caffe
 import coreset_structure
+import db_accessor
+import caffe
 from fast_rcnn.config import cfg
-from fast_rcnn.test import im_detect
-
+from fast_rcnn.test import im_detect_array
+from fast_rcnn.nms_wrapper import nms
 
 
 
 # return list of file names that are new
-def monitor_directory(path,files):
-	existing_file_set = set(os.listdir(path))
+def monitor_directory(path,existing_file_set):
+	files = set(os.listdir(path))
 	new_file_set = []
 	for f in files:
 		if f not in existing_file_set:
@@ -24,21 +26,26 @@ def monitor_directory(path,files):
 
 def process_coreset(path,net):
 	# walk the coreset
-	coreset = CoresetStructure(path)
-	db = DB()
-	scene_info = db.add_scene(coreset.get_video_info())
+	coreset = coreset_structure.CoresetStructure(path)
+	db = db_accessor.DB()
+	#print coreset.get_video_info()
+	#scene_info = db.add_scene(coreset.get_video_info())
 	paths = {}
+	#print coreset.get_results_name()
+	
 	paths['results'] = tree_path + coreset.get_results_name()
 	paths['tree'] = tree_path + coreset.get_tree_name()
 	paths['simple'] = path
-	db.add_coreset(scene_info,paths)
+	#db.add_coreset(scene_info,paths)
 	keyframes = coreset.get_keyframes()
+	#print coreset.get_video_info()
 	for keyframe in keyframes:
-		im = get_frame_from_video(video_path + coreset.get_video_name())
+		im = get_frame_from_video(video_path + coreset.get_video_info()[0][0],keyframe)
 		scores,boxes = im_detect_array(net,[im])
 		scores = scores[0]
 		boxes = boxes[0]
-		db.add_frames
+		print len(scores)
+		#db.add_detections_from_frame(scores,boxes,scene_info,keyframe)
 	db.close()
 		
 	# for all the frame numbers in the leaves - grab as just an image
@@ -67,14 +74,14 @@ def add_to_db():
 
 def get_frame_from_video(path,frame_no):
 	cap = cv2.VideoCapture(path)
-	frame_total = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-	frame_no = (float(frame_no) /float(frame_total))
-	cap.set(2,frame_no)
+	#frame_total = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+	#frame_no = (float(frame_no) /float(frame_total)
+	cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES,frame_no-1)
 	ret, frame = cap.read()
 	return frame
 
 if __name__=="__main__":
-	path = "/home/ubuntu/data/simplecoresets/"
+	path = "/home/ubuntu/data/simple_coresets/"
 	tree_path = "/home/ubuntu/data/coresets/"
 	video_path = "/home/ubuntu/data/videos/"
 	CLASSES = ('__background__',
@@ -89,5 +96,5 @@ if __name__=="__main__":
 	while True:
 		new_files, files = monitor_directory(path,files)
 		for f in new_files:
-			process_coreset(path + f)
+			process_coreset(path + f,net)
 		time.sleep(5)
