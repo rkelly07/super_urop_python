@@ -29,14 +29,14 @@ def process_coreset(path,net):
 	coreset = coreset_structure.CoresetStructure(path)
 	db = db_accessor.DB()
 	#print coreset.get_video_info()
-	#scene_info = db.add_scene(coreset.get_video_info())
+	scene_info = db.add_scene(coreset.get_video_info())
 	paths = {}
 	#print coreset.get_results_name()
 	
 	paths['results'] = tree_path + coreset.get_results_name()
 	paths['tree'] = tree_path + coreset.get_tree_name()
 	paths['simple'] = path
-	#db.add_coreset(scene_info,paths)
+	db.add_coreset(scene_info,paths)
 	keyframes = coreset.get_keyframes()
 	#print coreset.get_video_info()
 	for keyframe in keyframes:
@@ -44,8 +44,7 @@ def process_coreset(path,net):
 		scores,boxes = im_detect_array(net,[im])
 		scores = scores[0]
 		boxes = boxes[0]
-		print len(scores)
-		#db.add_detections_from_frame(scores,boxes,scene_info,keyframe)
+		db.add_detections_from_frame(scores,boxes,scene_info,keyframe)
 	db.close()
 		
 	# for all the frame numbers in the leaves - grab as just an image
@@ -97,4 +96,5 @@ if __name__=="__main__":
 		new_files, files = monitor_directory(path,files)
 		for f in new_files:
 			process_coreset(path + f,net)
+		print "sleeping"
 		time.sleep(5)

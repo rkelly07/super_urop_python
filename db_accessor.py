@@ -142,25 +142,29 @@ class DB():
 		label_inc = 4531
 		scene_path = scene_label[0]
 		scene_timestamp = scene_label[1]
-		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path = ' + scene_path + ' and timestamp= '+scene_timestamp + ';'
-		self.cur.execute(scene_query)
-		scene_id = cur.fetchone()[0]
+		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path =%s and timestamp=%s;'
+                self.cur.execute(scene_query,scene_label)
+		scene_id = self.cur.fetchone()[0]
 		for region in range(len(scores)):
 			#detection_label = detections[i][0]
 			#label_query = 'select id from ' +self.tablenames['label_table_name'] +' where title = ' + detection_label +';'
 			#self.cur.execute(label_query)
 			#label_id = cur.fetchone()[0]
 			for obj in range(1,len(scores[region])):
+				if scores[region][obj] < 0.8:
+					continue
 				label_version = 1
-				label_id = classes_dict[i]+label_inc
+				label_id = classes_dict[obj]+label_inc
 				obj_ind = obj*4
 				x1 = boxes[region][obj_ind]
 				y1 = boxes[region][obj_ind+1]
 				x2 = boxes[region][obj_ind+2]
 				y2 = boxes[region][obj_ind+3]
 				confidence  = scores[region][obj]
-				data = [frame,x1,x2,y1,y2,label_version,label_id,scene_id,confidence]
+				data = [int(frame),int(x1),int(x2),int(y1),int(y2),label_version,label_id,scene_id,float(confidence)]
 				statement = self.insert_statement(self.tablenames['region_table_name'],self.colnames['app_region_colnames'])
+				self.cur.execute(statement,data)
+                		self.conn.commit()
 
 	def insert_statement(self,tablename,colnames):
 		print tablename
