@@ -1,6 +1,7 @@
 import psycopg2
 import boto3
-
+import time
+import datetime
 
 # EXAMPLES:
 # Parameter Passing 
@@ -42,7 +43,7 @@ class DB():
         end"""
 	def __init__():
 		#TODO: How to connect to RDS
-		self.conn = psycopg2.connect("dbname=postgres user=postgres")
+		self.conn = psycopg2.connect("dbname=postgres user=postgres password=ryansuperurop host=superurop.ceungrwwr3co.us-east-1.rds.amazonaws.com")
 		self.cur = self.conn.cursor()
 		self.colnames = {'app_tag_colnames':['label_id','frame','stream'],
 						'app_labal_colnames':['title','time_added','time_updated','current_version'],
@@ -72,10 +73,14 @@ class DB():
 
 	def add_scene(self,scene):
 		statement = insert_statement(self.tablenames['scene_table_name'],self.colnames['app_scene_colnames'])
-		#TODO
-		data={scene.path,scene.timestamp,scene.frames,scene.frame_rate,scene.width,scene.height,time_taken,time_added,thumbnail};
+		ts = time.time()
+		time1 = datetime.datetime.fromtimestamp(ts).strftime('%d-%b-%Y %H:%M:%S')
+		time2 = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+		thumbnail = ' '
+		data=[scene['path'],time,scene['NumFrames'],scene['FPS'],scene['Width'],scene['Height'],time,time,thumbnail];
 		self.cur.execute(statement,data)
 		self.conn.commit()
+		return (scene['path'],scene['timestamp'])
 
 	"""function add_coreset(obj, scene_label, coreset)
             %first find scene_id
@@ -99,8 +104,7 @@ class DB():
 		self.cur.execute(scene_query)
 		scene_id = cur.fetchone()[0]
 		statement = insert_statement(self.tablenames['coreset_table_name'],self.colnames['app_coreset_colnames'])
-		#TODO
-		data = [scene_id,coreset[coreset_tree_path],coreset[coreset_results_path], coreset[simple_coreset_path]]
+		data = [scene_id,coreset['tree'],coreset['results'], coreset['simple']]
 		self.cur.execute(statement,data)
 		self.conn.commit()
 
@@ -133,6 +137,8 @@ class DB():
 
 
 	def add_detections_from_frame(self,detections,scene_label,frame):
+		scene_path = scene_label[0]
+		scene_timestamp = scene_label[1]
 		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path = ' + scene_path + ' and timestamp= '+scene_timestamp + ';'
 		self.cur.execute(scene_query)
 		scene_id = cur.fetchone()[0]
@@ -154,6 +160,6 @@ class DB():
 	def insert_statement(self,tablename,colnames):
 		return "INSERT INTO " + tablename + '(' + ", ".join(colnames) + ') VALUES (' + ','.join(['%s' for i in range(len(colnames))]+');')
 
-	def close():
+	def close(self):
 		self.cur.close()
 		self.conn.close()

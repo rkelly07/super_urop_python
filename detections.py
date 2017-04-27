@@ -25,9 +25,19 @@ def monitor_directory(path,files):
 def process_coreset(path,net):
 	# walk the coreset
 	coreset = CoresetStructure(path)
+	db = DB()
+	scene_info = db.add_scene(coreset.get_video_info())
+	paths = {}
+	paths['results'] = tree_path + coreset.get_results_name()
+	paths['tree'] = tree_path + coreset.get_tree_name()
+	paths['simple'] = path
+	db.add_coreset(scene_info,paths)
 	keyframes = coreset.get_keyframes()
 	for keyframe in keyframes:
-		print keyframe
+		scores,boxes = im_detect(net,im)
+		#TODO ADD DETECTIONS TO DB!!!!
+	db.close()
+		
 	# for all the frame numbers in the leaves - grab as just an image
 
 	# get the detections for a specific image
@@ -42,7 +52,7 @@ def run_detections(net,im):
 
 def init_net():
 	cfg.TEST.HAS_RPN = True
-	prototxt = os.path.join(cfg.MODELS_DIR, 'VGG16,
+	prototxt = os.path.join(cfg.MODELS_DIR, 'VGG16',
                             'faster_rcnn_alt_opt', 'faster_rcnn_test.pt')
 	caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models',
                               'VGG16_faster_rcnn_final.caffemodel')
@@ -61,7 +71,8 @@ def get_frame_from_video(path,frame_no):
 	return frame
 
 if __name__=="__main__":
-	path = ""
+	path = "/home/ubuntu/data/simplecoresets/"
+	tree_path = "/home/ubuntu/data/coresets/"
 	files = set([])
 	net = init_net()
 	while True:

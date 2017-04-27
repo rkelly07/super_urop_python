@@ -12,8 +12,8 @@ def get_new_uploads(bucketname, file_set):
 
 if __name__ == "__main__":
 	client = boto3.client('s3')
-	path = "/home/ubuntu/videos/"
-	bucketname = "ryankelly-superurop"
+	path = "/home/ubuntu/data/coresets/"
+	bucketname = "ryankelly-superurop-coreset"
 	file_set = set(os.listdir(path))
 	while True:
 		file_names = get_new_uploads(bucketname, file_set)
