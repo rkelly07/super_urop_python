@@ -34,8 +34,11 @@ def process_coreset(path,net):
 	db.add_coreset(scene_info,paths)
 	keyframes = coreset.get_keyframes()
 	for keyframe in keyframes:
-		scores,boxes = im_detect(net,im)
-		#TODO ADD DETECTIONS TO DB!!!!
+		im = get_frame_from_video(video_path + coreset.get_video_name())
+		scores,boxes = im_detect_array(net,[im])
+		scores = scores[0]
+		boxes = boxes[0]
+		db.add_frames
 	db.close()
 		
 	# for all the frame numbers in the leaves - grab as just an image
@@ -73,6 +76,14 @@ def get_frame_from_video(path,frame_no):
 if __name__=="__main__":
 	path = "/home/ubuntu/data/simplecoresets/"
 	tree_path = "/home/ubuntu/data/coresets/"
+	video_path = "/home/ubuntu/data/videos/"
+	CLASSES = ('__background__',
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat', 'chair',
+           'cow', 'diningtable', 'dog', 'horse',
+           'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor')
+	#Classes_Dict = {1:2,2:24,3:26,4:?,5:?,6:33,7:37,8:?,9:43,10:?,11:?,12:58,13:92,14:114,15:124,16:?,17:155,18:164,19:185,20:189}
 	files = set([])
 	net = init_net()
 	while True:

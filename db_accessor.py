@@ -136,26 +136,30 @@ class DB():
         end"""
 
 
-	def add_detections_from_frame(self,detections,scene_label,frame):
+	def add_detections_from_frame(self,scores,boxes,scene_label,frame):
+		classes_dict = {1:2,2:24,3:26,4:1,5:1,6:33,7:37,8:1,9:43,10:1,11:1,12:58,13:92,14:114,15:124,16:1,17:155,18:164,19:185,20:189}
+		label_inc = 4531
 		scene_path = scene_label[0]
 		scene_timestamp = scene_label[1]
 		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path = ' + scene_path + ' and timestamp= '+scene_timestamp + ';'
 		self.cur.execute(scene_query)
 		scene_id = cur.fetchone()[0]
-		for i in range(len(detections)):
-			detection_label = detections[i][0]
-			label_query = 'select id from ' +self.tablenames['label_table_name'] +' where title = ' + detection_label +';'
-			self.cur.execute(label_query)
-			label_id = cur.fetchone()[0]
-			#TODO
-			label_version = self.db_version
-			x1 = detections[i][1]
-			y1 = detections[i][2]
-			x2 = detections[i][3]
-			y2 = detections[i][4]
-			confidence  = detections[i][5]
-			data = [frame,x1,x2,y1,y2,label_version,label_id,scene_id,confidence]
-			statement = insert_statement(self.tablenames['region_table_name'],self.colnames['app_region_colnames'])
+		for region in range(len(scores)):
+			#detection_label = detections[i][0]
+			#label_query = 'select id from ' +self.tablenames['label_table_name'] +' where title = ' + detection_label +';'
+			#self.cur.execute(label_query)
+			#label_id = cur.fetchone()[0]
+			for obj in range(1,len(scores[region]):
+				label_version = 1
+				label_id = classes_dict[i]+label_inc
+				obj_ind = obj*4
+				x1 = boxes[region][obj_ind]
+				y1 = boxes[region][obj_ind+1]
+				x2 = boxes[region][obj_ind+2]
+				y2 = boxes[region][obj_ind+3]
+				confidence  = scores[region][obj]
+				data = [frame,x1,x2,y1,y2,label_version,label_id,scene_id,confidence]
+				statement = insert_statement(self.tablenames['region_table_name'],self.colnames['app_region_colnames'])
 
 	def insert_statement(self,tablename,colnames):
 		return "INSERT INTO " + tablename + '(' + ", ".join(colnames) + ') VALUES (' + ','.join(['%s' for i in range(len(colnames))]+');')
