@@ -1,6 +1,7 @@
 import psycopg2
 import boto3
-
+import time
+import datetime
 
 # EXAMPLES:
 # Parameter Passing 
@@ -40,9 +41,9 @@ class DB():
             obj.tablenames.synthetic_region_table_name = 'app_synthetic_region';
             obj.colnames.app_synthetic_region_colnames.insertion={'frame','x1', 'x2', 'y1', 'y2', 'class_id', 'confidence', 'importance', 'scene_id'};
         end"""
-	def __init__():
+	def __init__(self):
 		#TODO: How to connect to RDS
-		self.conn = psycopg2.connect("dbname=postgres user=postgres")
+		self.conn = psycopg2.connect("dbname=postgres user=postgres password=ryansuperurop host=superurop.ceungrwwr3co.us-east-1.rds.amazonaws.com")
 		self.cur = self.conn.cursor()
 		self.colnames = {'app_tag_colnames':['label_id','frame','stream'],
 						'app_labal_colnames':['title','time_added','time_updated','current_version'],
@@ -71,11 +72,16 @@ class DB():
         end"""
 
 	def add_scene(self,scene):
-		statement = insert_statement(self.tablenames['scene_table_name'],self.colnames['app_scene_colnames'])
-		#TODO
-		data={scene.path,scene.timestamp,scene.frames,scene.frame_rate,scene.width,scene.height,time_taken,time_added,thumbnail};
+		statement = self.insert_statement(self.tablenames['scene_table_name'],self.colnames['app_scene_colnames'])
+		ts = time.time()
+		time1 = datetime.datetime.fromtimestamp(ts).strftime('%d-%b-%Y %H:%M:%S')
+		time2 = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+		thumbnail = ' '
+		data=[scene[0][0],time1,int(scene[1][0][0]),int(scene[2][0][0]),int(scene[3][0][0]),int(scene[4][0][0]),time2,time2,thumbnail];
+		#self.cur.execute("SELECT setval('app_scene_id_seq', (SELECT MAX(id) FROM app_scene)+1)")
 		self.cur.execute(statement,data)
 		self.conn.commit()
+		return (scene[0][0],time1)
 
 	"""function add_coreset(obj, scene_label, coreset)
             %first find scene_id
@@ -95,12 +101,11 @@ class DB():
 	def add_coreset(self, scene_label, coreset):
 		scene_path = scene_label[0]
 		scene_timestamp = scene_label[1]
-		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path = ' + scene_path + ' and timestamp= '+scene_timestamp + ';'
-		self.cur.execute(scene_query)
-		scene_id = cur.fetchone()[0]
-		statement = insert_statement(self.tablenames['coreset_table_name'],self.colnames['app_coreset_colnames'])
-		#TODO
-		data = [scene_id,coreset[coreset_tree_path],coreset[coreset_results_path], coreset[simple_coreset_path]]
+		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path =%s and timestamp=%s;'
+		self.cur.execute(scene_query,scene_label)
+		scene_id = self.cur.fetchone()[0]
+		statement = self.insert_statement(self.tablenames['coreset_table_name'],self.colnames['app_coreset_colnames'])
+		data = [scene_id,coreset['tree'],coreset['results'], coreset['simple']]
 		self.cur.execute(statement,data)
 		self.conn.commit()
 
@@ -132,28 +137,40 @@ class DB():
         end"""
 
 
-	def add_detections_from_frame(self,detections,scene_label,frame):
-		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path = ' + scene_path + ' and timestamp= '+scene_timestamp + ';'
-		self.cur.execute(scene_query)
-		scene_id = cur.fetchone()[0]
-		for i in range(len(detections)):
-			detection_label = detections[i][0]
-			label_query = 'select id from ' +self.tablenames['label_table_name'] +' where title = ' + detection_label +';'
-			self.cur.execute(label_query)
-			label_id = cur.fetchone()[0]
-			#TODO
-			label_version = self.db_version
-			x1 = detections[i][1]
-			y1 = detections[i][2]
-			x2 = detections[i][3]
-			y2 = detections[i][4]
-			confidence  = detections[i][5]
-			data = [frame,x1,x2,y1,y2,label_version,label_id,scene_id,confidence]
-			statement = insert_statement(self.tablenames['region_table_name'],self.colnames['app_region_colnames'])
+	def add_detections_from_frame(self,scores,boxes,scene_label,frame):
+		classes_dict = {1:2,2:24,3:26,4:1,5:1,6:33,7:37,8:1,9:43,10:1,11:1,12:58,13:92,14:114,15:124,16:1,17:155,18:164,19:185,20:189}
+		label_inc = 4531
+		scene_path = scene_label[0]
+		scene_timestamp = scene_label[1]
+		scene_query = 'select id from ' +self.tablenames['scene_table_name'] +' where path =%s and timestamp=%s;'
+                self.cur.execute(scene_query,scene_label)
+		scene_id = self.cur.fetchone()[0]
+		for region in range(len(scores)):
+			#detection_label = detections[i][0]
+			#label_query = 'select id from ' +self.tablenames['label_table_name'] +' where title = ' + detection_label +';'
+			#self.cur.execute(label_query)
+			#label_id = cur.fetchone()[0]
+			for obj in range(1,len(scores[region])):
+				if scores[region][obj] < 0.8:
+					continue
+				label_version = 1
+				label_id = classes_dict[obj]+label_inc
+				obj_ind = obj*4
+				x1 = boxes[region][obj_ind]
+				y1 = boxes[region][obj_ind+1]
+				x2 = boxes[region][obj_ind+2]
+				y2 = boxes[region][obj_ind+3]
+				confidence  = scores[region][obj]
+				data = [int(frame),int(x1),int(x2),int(y1),int(y2),label_version,label_id,scene_id,float(confidence)]
+				statement = self.insert_statement(self.tablenames['region_table_name'],self.colnames['app_region_colnames'])
+				self.cur.execute(statement,data)
+                		self.conn.commit()
 
 	def insert_statement(self,tablename,colnames):
-		return "INSERT INTO " + tablename + '(' + ", ".join(colnames) + ') VALUES (' + ','.join(['%s' for i in range(len(colnames))]+');')
+		print tablename
+		print ', '.join(colnames)
+		return 'INSERT INTO ' + tablename + '(' + ', '.join(colnames) + ') VALUES (' + ','.join(['%s' for i in range(len(colnames))])+');'
 
-	def close():
+	def close(self):
 		self.cur.close()
 		self.conn.close()

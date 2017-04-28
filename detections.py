@@ -1,20 +1,22 @@
+import _init_paths
 import boto3
 import os
 import time
 import cv2
 import numpy as np
 import scipy
-import caffe
 import coreset_structure
+import db_accessor
+import caffe
 from fast_rcnn.config import cfg
-from fast_rcnn.test import im_detect
-
+from fast_rcnn.test import im_detect_array
+from fast_rcnn.nms_wrapper import nms
 
 
 
 # return list of file names that are new
-def monitor_directory(path,files):
-	existing_file_set = set(os.listdir(path))
+def monitor_directory(path,existing_file_set):
+	files = set(os.listdir(path))
 	new_file_set = []
 	for f in files:
 		if f not in existing_file_set:
@@ -24,10 +26,27 @@ def monitor_directory(path,files):
 
 def process_coreset(path,net):
 	# walk the coreset
-	coreset = CoresetStructure(path)
+	coreset = coreset_structure.CoresetStructure(path)
+	db = db_accessor.DB()
+	#print coreset.get_video_info()
+	scene_info = db.add_scene(coreset.get_video_info())
+	paths = {}
+	#print coreset.get_results_name()
+	
+	paths['results'] = tree_path + coreset.get_results_name()
+	paths['tree'] = tree_path + coreset.get_tree_name()
+	paths['simple'] = path
+	db.add_coreset(scene_info,paths)
 	keyframes = coreset.get_keyframes()
+	#print coreset.get_video_info()
 	for keyframe in keyframes:
-		print keyframe
+		im = get_frame_from_video(video_path + coreset.get_video_info()[0][0],keyframe)
+		scores,boxes = im_detect_array(net,[im])
+		scores = scores[0]
+		boxes = boxes[0]
+		db.add_detections_from_frame(scores,boxes,scene_info,keyframe)
+	db.close()
+		
 	# for all the frame numbers in the leaves - grab as just an image
 
 	# get the detections for a specific image
@@ -42,7 +61,7 @@ def run_detections(net,im):
 
 def init_net():
 	cfg.TEST.HAS_RPN = True
-	prototxt = os.path.join(cfg.MODELS_DIR, 'VGG16,
+	prototxt = os.path.join(cfg.MODELS_DIR, 'VGG16',
                             'faster_rcnn_alt_opt', 'faster_rcnn_test.pt')
 	caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models',
                               'VGG16_faster_rcnn_final.caffemodel')
@@ -54,18 +73,28 @@ def add_to_db():
 
 def get_frame_from_video(path,frame_no):
 	cap = cv2.VideoCapture(path)
-	frame_total = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-	frame_no = (float(frame_no) /float(frame_total))
-	cap.set(2,frame_no)
+	#frame_total = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+	#frame_no = (float(frame_no) /float(frame_total)
+	cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES,frame_no-1)
 	ret, frame = cap.read()
 	return frame
 
 if __name__=="__main__":
-	path = ""
+	path = "/home/ubuntu/data/simple_coresets/"
+	tree_path = "/home/ubuntu/data/coresets/"
+	video_path = "/home/ubuntu/data/videos/"
+	CLASSES = ('__background__',
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat', 'chair',
+           'cow', 'diningtable', 'dog', 'horse',
+           'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor')
+	#Classes_Dict = {1:2,2:24,3:26,4:?,5:?,6:33,7:37,8:?,9:43,10:?,11:?,12:58,13:92,14:114,15:124,16:?,17:155,18:164,19:185,20:189}
 	files = set([])
 	net = init_net()
 	while True:
 		new_files, files = monitor_directory(path,files)
 		for f in new_files:
-			process_coreset(path + f)
+			process_coreset(path + f,net)
+		print "sleeping"
 		time.sleep(5)
